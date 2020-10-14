@@ -1,7 +1,10 @@
 import { Animated, Easing, View } from 'react-native';
 import PropTypes from 'prop-types';
 import React from 'react';
+import FastImage from 'react-native-fast-image'
 import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';
+
+const AnimatedFastImage = Animated.createAnimatedComponent(FastImage);
 
 const stylePropType = PropTypes.oneOfType([PropTypes.number, PropTypes.object, PropTypes.array]);
 
@@ -120,7 +123,7 @@ export default class SpriteSheet extends React.PureComponent {
           },
         ]}
       >
-        <Animated.Image
+        <AnimatedFastImage
           source={source}
           onLoad={onLoad}
           style={[
