@@ -3,10 +3,7 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import FastImage from 'react-native-fast-image'
 
-const AnimatedFastImage = Animated.createAnimatedComponent(FastImage);
-
 const stylePropType = PropTypes.oneOfType([PropTypes.number, PropTypes.object, PropTypes.array]);
-
 const sourcePropType = PropTypes.oneOfType([PropTypes.number, PropTypes.object]);
 
 function resolveAssetSource(source) {
@@ -29,6 +26,7 @@ export default class SpriteSheet extends React.PureComponent {
     columns: PropTypes.number.isRequired,
     rows: PropTypes.number.isRequired,
     animations: PropTypes.object.isRequired, // see example
+    firstColumn: PropTypes.number, // choose the column on sprite image 
     viewStyle: stylePropType, // styles for the sprite sheet container
     imageStyle: stylePropType, // styles for the sprite sheet
     height: PropTypes.number, // set either height, width, or neither
@@ -37,7 +35,6 @@ export default class SpriteSheet extends React.PureComponent {
     frameWidth: PropTypes.number,
     frameHeight: PropTypes.number,
   };
-
   static defaultProps = {
     columns: 1,
     rows: 1,
@@ -59,9 +56,9 @@ export default class SpriteSheet extends React.PureComponent {
       translateXOutputRange: [0, 1],
     };
 
-    this.time = new Animated.Value(0);
     this.interpolationRanges = {};
-
+    this.time = new Animated.Value(0);
+    
     let {
       source,
       height,
@@ -73,6 +70,7 @@ export default class SpriteSheet extends React.PureComponent {
       offsetY,
       offsetX,
     } = this.props;
+    
     let image = resolveAssetSource(source);
     let ratio = 1;
     let imageHeight = image.height;
@@ -81,7 +79,7 @@ export default class SpriteSheet extends React.PureComponent {
     offsetY = -offsetY;
     frameHeight = frameHeight || image.height / rows;
     frameWidth = frameWidth || image.width / columns;
-
+  
     if (width) {
       ratio = (width * columns) / image.width;
       imageHeight = image.height * ratio;
@@ -95,7 +93,7 @@ export default class SpriteSheet extends React.PureComponent {
       frameHeight = height;
       frameWidth = (image.width / columns) * ratio;
     }
-
+  
     Object.assign(this.state, {
       imageHeight,
       imageWidth,
@@ -104,7 +102,7 @@ export default class SpriteSheet extends React.PureComponent {
       offsetX,
       offsetY,
     });
-
+  
     this.generateInterpolationRanges();
   }
 
@@ -118,13 +116,28 @@ export default class SpriteSheet extends React.PureComponent {
       offsetX,
       offsetY,
     } = this.state;
-    let { viewStyle, imageStyle, source, onLoad } = this.props;
-
+    let { viewStyle, imageStyle, source, onLoad, firstColumn } = this.props;
+    
+    /**
+     * translate is required initial value after calculation.
+     */
     let {
-      translateY = { in: [0, 0], out: [offsetY, offsetY] },
-      translateX = { in: [0, 0], out: [offsetX, offsetX] },
+      translateY = { 
+        in: [0, 0], 
+        out: [
+          firstColumn > -1 ? this.getFrameCoords(firstColumn).y : offsetY, 
+          firstColumn > -1 ? this.getFrameCoords(firstColumn).y : offsetY, 
+        ] 
+      },
+      translateX = { 
+        in: [0, 0], 
+        out: [
+          firstColumn > -1 ? this.getFrameCoords(firstColumn).x : offsetX, 
+          firstColumn > -1 ? this.getFrameCoords(firstColumn).x : offsetX, 
+        ]
+      },
     } = this.interpolationRanges[animationType] || {};
-
+  
     return (
       <View
         style={[
@@ -136,7 +149,7 @@ export default class SpriteSheet extends React.PureComponent {
           },
         ]}
       >
-        <AnimatedFastImage
+        <Animated.Image
           source={source}
           onLoad={onLoad}
           style={[
@@ -166,19 +179,37 @@ export default class SpriteSheet extends React.PureComponent {
     );
   }
 
+  /**
+   * cnt is count;
+   * Since firstColumn is selectable, conditional statements are used.
+   * If the initial values are different, an array in which the order is changed must be used.
+   */
   generateInterpolationRanges = () => {
-    let { animations } = this.props;
-
+    let { animations, firstColumn } = this.props;
     for (let key in animations) {
       let { length } = animations[key];
       let input = [].concat(...Array.from({ length }, (_, i) => [i, i + 1]));
+
+      let cntX = firstColumn;
+      let cntY = firstColumn;
+
       this.interpolationRanges[key] = {
         translateY: {
           in: input,
           out: [].concat(
             ...animations[key].map(i => {
-              let { y } = this.getFrameCoords(i);
-              return [y, y];
+              if(firstColumn > -1){
+                if(cntY === length){
+                  cntY = 0;
+                }
+                
+                let { y } = this.getFrameCoords(animations[key][cntY] !== undefined && length > 1 ? animations[key][cntY] : firstColumn);
+                cntY++;
+                return [y, y];
+              } else {
+                let { y } = this.getFrameCoords(i);
+                return [y, y];
+              }
             }),
           ),
         },
@@ -186,8 +217,17 @@ export default class SpriteSheet extends React.PureComponent {
           in: input,
           out: [].concat(
             ...animations[key].map(i => {
-              let { x } = this.getFrameCoords(i);
-              return [x, x];
+              if(firstColumn > -1){
+                if(cntX === length){
+                  cntX = 0;
+                }
+                let { x } = this.getFrameCoords(animations[key][cntX] !== undefined && length > 1 ? animations[key][cntX] : firstColumn);
+                cntX++;
+                return [x, x];
+              } else {
+                let { x } = this.getFrameCoords(i);
+                return [x, x];
+              }
             }),
           ),
         },
@@ -207,7 +247,6 @@ export default class SpriteSheet extends React.PureComponent {
   play = ({ type, fps = 24, loop = false, resetAfterFinish = false, onFinish = () => {} }) => {
     let { animations } = this.props;
     let { length } = animations[type];
-
     this.setState({ animationType: type }, () => {
       let animation = Animated.timing(this.time, {
         toValue: length,
