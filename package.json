@@ -32,6 +32,8 @@
   },
   "homepage": "https://github.com/MiLeung/rn-sprite-sheet#readme",
   "dependencies": {
+    "expo-fast-image": "^1.1.3",
+    "expo-file-system": "^14.0.0",
     "react-native-fast-image": "^8.5.11"
   }
 }
