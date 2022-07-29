@@ -1,7 +1,6 @@
 import { Animated, Easing, Image as NativeImage, Platform, View } from 'react-native';
 import PropTypes from 'prop-types';
 import React from 'react';
-import FastImage from 'react-native-fast-image'
 
 const stylePropType = PropTypes.oneOfType([PropTypes.number, PropTypes.object, PropTypes.array]);
 const sourcePropType = PropTypes.oneOfType([PropTypes.number, PropTypes.object]);
